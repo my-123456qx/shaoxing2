@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>绍兴市域 · 浙东历史人文研学导览 | 三大故居专题</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body {
+            background: #d2c2a0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', 'Noto Serif SC', 'Microsoft YaHei', '楷体', 'KaiTi', serif;
+            padding: 12px;
+        }
+        .scroll-container {
+            position: relative;
+            background: #efe3c9;
+            padding: 16px 20px 20px 20px;
+            border-radius: 40px 12px 40px 12px;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
+            display: inline-block;
+            max-width: 100%;
+        }
+        .border-huiwen {
+            position: relative;
+            background: #fdf8ed;
+            padding: 12px;
+            border-radius: 28px 8px 28px 8px;
+            box-shadow: inset 0 0 0 2px #e6d5b3, 0 0 0 4px #b28246, 0 0 0 8px #decb9c;
+        }
+        .border-huiwen::before,
+        .border-huiwen::after {
+            content: "❦  ❦  ❦  ❦  ❦  ❦  ❦  ❦  ❦  ❦";
+            position: absolute;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 12px;
+            color: #ad8a58;
+            letter-spacing: 6px;
+            font-family: monospace;
+            pointer-events: none;
+        }
+        .border-huiwen::before { bottom: -24px; }
+        .border-huiwen::after { top: -24px; }
+        
+        .map-canvas-wrapper {
+            position: relative;
+            background: #fdf3e0;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 1100px;
+            height: 75vh;
+            overflow: hidden;
+            box-shadow: inset 0 0 30px rgba(160, 120, 60, 0.1), 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .scroll-zoom-container {
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            cursor: grab;
+            -webkit-overflow-scrolling: touch;
+            scroll-behavior: smooth;
+        }
+        .scroll-zoom-container:active {
+            cursor: grabbing;
+        }
+        
+        .zoom-pan-content {
+            position: relative;
+            transform-origin: 0 0;
+            will-change: transform;
+            transition: transform 0.08s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+        }
+        
+        .map-image {
+            display: block;
+            width: 100%;
+            height: auto;
+            pointer-events: none;
+            will-change: transform;
+        }
+        
+        .hotspots-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        
+        .hotspot {
+            position: absolute;
+            cursor: pointer;
+            pointer-events: auto;
+            transform: translate(-50%, -50%);
+            transition: transform 0.2s ease;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .hotspot::before {
+            content: '';
+            position: absolute;
+            top: -16px;
+            left: -16px;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: transparent;
+            pointer-events: auto;
+        }
+        .hotspot:hover {
+            transform: translate(-50%, -50%) scale(1.2);
+            filter: drop-shadow(0 0 8px rgba(220, 120, 40, 0.8));
+        }
+        
+        .marker-luxun,
+        .marker-zhou,
+        .marker-qiujin {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #e9d6a3;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
+        .marker-luxun {
+            width: 18px;
+            height: 18px;
+            border-radius: 3px 6px 3px 6px;
+            background: linear-gradient(135deg, #2a5e2a, #1c3a1c);
+        }
+        .marker-luxun i { font-size: 10px; color: #f9eec0; }
+        .marker-zhou {
+            width: 18px;
+            height: 18px;
+            border-radius: 6px 3px 6px 3px;
+            background: linear-gradient(135deg, #b5452e, #8a2e1c);
+        }
+        .marker-zhou i { font-size: 10px; color: #fff1cf; }
+        .marker-qiujin {
+            width: 18px;
+            height: 18px;
+            border-radius: 4px 4px 8px 4px;
+            background: linear-gradient(135deg, #46789e, #2a4c6e);
+        }
+        .marker-qiujin i { font-size: 10px; color: #ffeecc; }
+        
+        @media (min-width: 768px) {
+            .marker-luxun {
+                width: 32px;
+                height: 32px;
+                border-radius: 6px 14px 6px 14px;
+            }
+            .marker-luxun i { font-size: 18px; }
+            .marker-zhou {
+                width: 32px;
+                height: 32px;
+                border-radius: 14px 6px 14px 6px;
+            }
+            .marker-zhou i { font-size: 18px; }
+            .marker-qiujin {
+                width: 32px;
+                height: 32px;
+                border-radius: 8px 8px 18px 8px;
+            }
+            .marker-qiujin i { font-size: 18px; }
+            .hotspot::before {
+                width: 52px;
+                height: 52px;
+                top: -10px;
+                left: -10px;
+            }
+        }
+        
+        .zoom-controls {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 200;
+        }
+        .zoom-btn {
+            width: 44px;
+            height: 44px;
+            background: #e9dbbc;
+            border: 2px solid #b47c44;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 22px;
+            font-weight: bold;
+            color: #5c371b;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            user-select: none;
+        }
+        .zoom-btn:active { transform: scale(0.94); background: #dcc98a; }
+        @media (min-width: 768px) {
+            .zoom-btn { width: 48px; height: 48px; font-size: 24px; }
+        }
+        
+        .legend-vertical {
+            position: fixed;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(245, 235, 210, 0.92);
+            backdrop-filter: blur(8px);
+            padding: 12px 6px;
+            border-radius: 28px 6px 28px 6px;
+            border-left: 3px solid #b45f2b;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            font-size: 12px;
+            font-weight: bold;
+            letter-spacing: 4px;
+            color: #4a2a14;
+            z-index: 100;
+            pointer-events: none;
+        }
+        .legend-vertical span {
+            display: block;
+            margin: 6px 0;
+            writing-mode: horizontal-tb;
+            font-size: 16px;
+        }
+        
+        .compass {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: #e9dbbc;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #b47c44;
+            z-index: 100;
+            pointer-events: none;
+            font-size: 22px;
+            color: #5c371b;
+        }
+        .compass .north { font-size: 9px; margin-top: 2px; }
+        @media (min-width: 768px) {
+            .compass { width: 60px; height: 60px; font-size: 26px; }
+        }
+        
+        .scale-bar {
+            position: fixed;
+            bottom: 20px;
+            right: 80px;
+            background: #e9dbbc;
+            padding: 4px 10px;
+            border-radius: 30px;
+            font-size: 10px;
+            font-family: monospace;
+            color: #4a2a14;
+            border: 1px solid #b47c44;
+            z-index: 100;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+        @media (min-width: 768px) {
+            .scale-bar { font-size: 12px; right: 100px; }
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(5px);
+            padding: 16px;
+        }
+        .modal-content {
+            background: #fffef2;
+            width: 100%;
+            max-width: 680px;
+            max-height: 88vh;
+            border-radius: 40px 16px 40px 16px;
+            overflow-y: auto;
+            border: 1px solid #dfbc82;
+            box-shadow: 0 20px 35px rgba(0,0,0,0.4);
+            -webkit-text-size-adjust: 100%;
+            font-size: 16px;
+        }
+        .modal-header {
+            background: #654321;
+            color: #fdf0da;
+            padding: 14px 20px;
+            border-radius: 40px 16px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .modal-header h2 { 
+            font-size: 1.3rem; 
+            margin: 0;
+            letter-spacing: 0.5px;
+        }
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 30px;
+            cursor: pointer;
+            color: #f6dba6;
+            padding: 0 8px;
+            line-height: 1;
+        }
+        .modal-body { 
+            padding: 18px 20px; 
+        }
+        .intro-section, .history-section, .video-section {
+            margin-bottom: 24px;
+            border-bottom: 1px dashed #e0c8a0;
+            padding-bottom: 16px;
+        }
+        .intro-section h3, .history-section h3, .video-section h3 {
+            font-size: 1.1rem;
+            color: #9b6a3b;
+            border-left: 4px solid #c2853b;
+            padding-left: 12px;
+            margin-bottom: 12px;
+        }
+        .intro-section p, .history-section p {
+            line-height: 1.55;
+            font-size: 15px;
+            color: #2c2418;
+            text-align: justify;
+        }
+        @media (max-width: 640px) {
+            .modal-body { padding: 14px 16px; }
+            .intro-section p, .history-section p { font-size: 14px; line-height: 1.5; }
+            .modal-header h2 { font-size: 1.2rem; }
+        }
+        @media (min-width: 768px) {
+            .intro-section p, .history-section p { font-size: 16px; line-height: 1.6; }
+        }
+        .video-wrapper {
+            background: #2c241e;
+            border-radius: 20px;
+            margin: 12px 0;
+            min-height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+        #video-frame { width: 100%; aspect-ratio: 16 / 9; border: none; }
+        .video-placeholder { color: #cfbc93; text-align: center; padding: 30px; font-size: 0.9rem; }
+        .video-control-panel {
+            margin-top: 16px;
+            border-top: 1px solid #e9dbbd;
+            padding-top: 14px;
+        }
+        .admin-badge {
+            display: inline-block;
+            background: #d6b17e;
+            color: #2e241a;
+            font-size: 0.7rem;
+            border-radius: 30px;
+            padding: 2px 10px;
+            margin-bottom: 12px;
+        }
+        .video-input-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 10px 0;
+        }
+        .video-input-group input {
+            flex: 2;
+            min-width: 160px;
+            padding: 10px 14px;
+            border-radius: 40px;
+            border: 1px solid #c7aa74;
+            background: #fef7e8;
+            font-size: 14px;
+        }
+        .btn-video {
+            background: #7c5633;
+            color: white;
+            padding: 8px 18px;
+            border-radius: 40px;
+            cursor: pointer;
+            font-weight: bold;
+            border: none;
+            font-size: 0.85rem;
+            transition: 0.1s;
+        }
+        .btn-video:active { transform: scale(0.97); }
+        .btn-outline { background: transparent; border: 1.5px solid #7c5633; color: #7c5633; }
+        .visitor-message {
+            background: #f5ebd2;
+            border-radius: 24px;
+            padding: 10px 16px;
+            text-align: center;
+            font-size: 13px;
+            color: #a57242;
+            margin: 8px 0;
+        }
+        .admin-login-btn {
+            background: #c2853b22;
+            border: 1px solid #c2853b;
+            border-radius: 30px;
+            padding: 6px 14px;
+            font-size: 13px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 6px;
+        }
+        .hint-text { font-size: 0.7rem; margin-top: 8px; color: #8f7a5b; }
+        i.fa, i.fas { pointer-events: none; }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+<div class="scroll-container">
+    <div class="border-huiwen">
+        <div class="map-canvas-wrapper">
+            <div class="scroll-zoom-container" id="scrollZoomContainer">
+                <div class="zoom-pan-content" id="zoomPanContent">
+                    <!-- 图片链接已替换为您提供的京东图片地址 -->
+                    <img class="map-image" id="baseMap" src="https://img14.360buyimg.com/ddimg/jfs/t1/437983/29/20929/219994/6a143a4aFb0a8d13c/00155a03c04d4794.jpg?source_btm_token=a1128.b17614.c770171.d88956.ec7210247-4a88-4a98-8e2b-96538f379f78&amp;need_out_animation=right&amp;finish_when_network_unavailable=false&amp;bdx_monitor_append_params=%7B%22enter_from%22%3A%22im_safe_jump_to_web%22%7D&amp;from_im=true&amp;ug_route_out_customs_info=%7B%22cert_id%22%3A80963330%7D&amp;disable_auto_expose=1&amp;enable_webview_select_search=1&amp;font_scale=" alt="绍兴市域浙东历史人文研学导览图">
+                    <div class="hotspots-layer" id="hotspotsLayer"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="legend-vertical"><span>🏯</span> 核心讲解点 <span>✧</span></div>
+<div class="compass">🧭<div class="north">北</div></div>
+<div class="scale-bar">📏 0     500m     1km</div>
+
+<div class="zoom-controls">
+    <div class="zoom-btn" id="zoomInBtn">➕</div>
+    <div class="zoom-btn" id="zoomOutBtn">➖</div>
+    <div class="zoom-btn" id="zoomResetBtn">⟳</div>
+</div>
+
+<div id="detailModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="modalTitle">故居名称</h2>
+            <button class="close-modal" id="closeModalBtn">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="intro-section">
+                <h3><i class="fas fa-home"></i> 故居介绍</h3>
+                <p id="introText"></p>
+            </div>
+            <div class="history-section">
+                <h3><i class="fas fa-history"></i> 历史背景</h3>
+                <p id="historyText"></p>
+            </div>
+            <div class="video-section">
+                <h3><i class="fas fa-video"></i> 影像资料</h3>
+                <div class="video-wrapper">
+                    <div id="videoPlaceholder" class="video-placeholder"><i class="fas fa-play-circle" style="font-size: 2rem;"></i><br>加载研学影像</div>
+                    <iframe id="videoFrame" style="display:none; width:100%; height:100%;" frameborder="0" allowfullscreen></iframe>
+                </div>
+                <div id="videoControlContainer" class="video-control-panel"></div>
+                <div class="hint-text">📜 影像来源于公开资料，部分为纪念馆数字资源。</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        const sites = [
+            {
+                id: "luxun", name: "鲁迅故里", left: "45.0%", top: "33.5%",
+                intro: "鲁迅故里位于绍兴市越城区鲁迅中路，是伟大的文学家、思想家、革命家鲁迅先生（周树人）早年生活、学习和工作的真实场所。这里完整保留着周家新台门、老台门等多处清代建筑群，以及百草园、三味书屋等鲁迅笔下多次出现的文学原址。走进鲁迅故里，青石板路、竹丝台门、乌瓦粉墙，处处透着绍兴水乡的韵味。百草园是鲁迅童年嬉戏的乐园，短短的泥墙根一带，有他笔下生动的蟋蟀、何首乌；三味书屋则是他12岁至17岁读书的地方，书桌上至今还刻着一个清晰的“早”字，记录着鲁迅因替父亲买药迟到而刻字自勉的故事。故居内还设有大型陈列馆，通过大量的手稿、实物、照片，系统展示了鲁迅从绍兴到南京、日本、北京、上海的生命轨迹，以及他“横眉冷对千夫指，俯首甘为孺子牛”的伟大人格。整个区域不仅是全国重点文物保护单位，也是爱国主义教育基地和绍兴文化地标，每年吸引数百万游客前来追寻文学巨匠的足迹。",
+                history: "鲁迅（1881年9月25日－1936年10月19日），原名周樟寿，后改名周树人，字豫才，浙江绍兴人。他是中国现代文学的奠基人之一，五四新文化运动的重要参与者，中国现代思想解放的先驱。鲁迅出生于封建士大夫家庭，少年时代家庭由小康坠入困顿，使他深刻体会到了世态炎凉。1902年，他东渡日本留学，最初学医，后认识到“医治灵魂比医治身体更重要”，弃医从文，立志用文学唤醒国民。1909年回国后，他先后在杭州、绍兴等地任教，1918年以“鲁迅”为笔名发表了中国现代文学史上第一篇白话短篇小说《狂人日记》，深刻揭露了封建礼教的“吃人”本质。此后，他陆续创作了《阿Q正传》、《孔乙己》、《药》、《故乡》等经典小说，以及大量犀利深刻的杂文、散文。散文集《朝花夕拾》中的多篇文章，如《从百草园到三味书屋》、《藤野先生》，都深情回忆了他在绍兴的童年与求学经历。鲁迅一生以笔为武器，批判旧文化、旧道德，唤醒民众，被誉为“民族魂”。1936年10月19日，鲁迅在上海病逝。鲁迅故里作为他诞生和成长的地方，是理解其思想与文学最重要的实物空间，现为全国爱国主义教育示范基地。",
+                iconClass: "marker-luxun", iconName: "fas fa-book-open", story: "📖 书本 · 文豪风骨"
+            },
+            {
+                id: "zhouenlai", name: "周恩来祖居（百岁堂）", left: "27.5%", top: "41.0%",
+                intro: "周恩来祖居，又名“百岁堂”，位于绍兴市越城区劳动路，是一座具有明清风格的砖木结构宅院，座北朝南，三进三开间，白墙黑瓦，古朴庄重。这里是周恩来总理的祖辈世居之地，周氏家族在此繁衍生息，至今保存着丰富的历史遗迹和家族文物。祖居内设有《周恩来与故乡》大型陈列展览，通过大量珍贵照片、书信、文献和实物，全面展示了周恩来与绍兴的血脉联系以及他多次回绍兴的活动情况。1939年，周恩来以国民政府军事委员会政治部副部长的身份，回到故乡绍兴进行抗日宣传和社会考察，他在此接待亲友、召集各界人士座谈，宣传党的抗日民族统一战线政策，极大地鼓舞了绍兴人民的抗战热情。祖居中还保留着周恩来当年使用过的桌椅、床铺以及他亲笔题写的“努力学习，精益求精”等墨迹。百岁堂不仅是周恩来总理革命生涯中的一个重要节点，也是了解周氏家风、总理人格魅力的重要窗口，现为浙江省文物保护单位和爱国主义教育基地。",
+                history: "周恩来（1898年3月5日－1976年1月8日），字翔宇，祖籍浙江绍兴，生于江苏淮安。他是伟大的无产阶级革命家、政治家、军事家、外交家，中国共产党、中华人民共和国和中国人民解放军的主要创建人和领导人之一。周恩来早年即立志“为中华之崛起而读书”，1917年留学日本，1920年赴法国勤工俭学，1921年加入中国共产党。回国后，他担任黄埔军校政治部主任，领导了南昌起义，是人民军队的缔造者之一。抗日战争时期，他长期在国统区从事统战工作，为团结抗日作出了巨大贡献。新中国成立后，周恩来担任国务院总理长达26年，同时兼任外交部长，他呕心沥血，为新中国的外交事业、经济建设和社会发展奠定了基础。他提出的“和平共处五项原则”至今仍是国际关系的重要准则。1976年1月8日，周恩来在北京逝世，百万民众自发十里长街送总理，成为中华民族集体记忆中最为悲壮的一幕。周恩来虽未在绍兴长期居住，但他始终以自己是绍兴人为荣，多次提及“我是绍兴人”，并曾于1939年专程回绍兴祭祖、动员抗日。百岁堂作为周氏家族的根脉所在，承载着总理对故乡的眷恋，也激励着后人学习他勤政廉洁、鞠躬尽瘁的崇高风范。",
+                iconClass: "marker-zhou", iconName: "fas fa-stamp", story: "🌸 海棠 · 君子如玉"
+            },
+            {
+                id: "qiujin", name: "秋瑾故居", left: "35%", top: "21.0%",
+                intro: "秋瑾故居位于绍兴市越城区和畅堂，是一处坐北朝南、青瓦白墙的清代建筑群。这里原是秋瑾祖父秋嘉禾的住宅，秋瑾自幼随父入湘，但多次回绍兴居住，1905年从日本回国后，这里更成为她从事革命活动、联络会党、策划起义的重要据点。故居共五进，第一进为门厅，第二进为秋瑾的卧室和“槐庭”书房，书房名“槐庭”取自秋瑾诗“昨日邻家乞新火，晓窗分与读书灯”，她曾在此挑灯夜读、起草文件、秘密会晤革命同志。第三进是她的客厅和习武厅，至今仍陈列着秋瑾当年使用过的刀、剑、枪等武器，充分展示了她“休言女子非英物，夜夜龙泉壁上鸣”的豪迈气概。故居内还复原了秋瑾与家人生活的场景，并设有《鉴湖女侠秋瑾生平事迹展》，通过大量史料、手稿、遗物，全面介绍了她从官宦闺秀到革命志士的壮烈一生。整座故居朴素而庄重，室内的每一件物品都默默诉说着这位女侠的热血与理想。",
+                history: "秋瑾（1875年11月8日－1907年7月15日），初名闺瑾，乳名玉姑，字璇卿，号旦吾，东渡日本后改名瑾，字竞雄，自称“鉴湖女侠”，浙江绍兴人。她出身于官宦世家，自幼喜爱读书、习武，性格豪爽，蔑视封建礼教。1904年，她不顾丈夫反对，自费东渡日本留学，积极投身革命活动，先后加入光复会、同盟会，并担任同盟会浙江分会会长。在日本期间，她与陈撷芬发起成立“共爱会”，创办《白话报》，提倡女权，鼓吹革命。1906年回国后，秋瑾在上海创办《中国女报》，宣传男女平等。1907年，她接替徐锡麟主持绍兴大通学堂，以此为据点，联络浙东各地会党，秘密训练革命骨干，积极准备皖浙起义。同年7月6日，徐锡麟在安庆起义失败牺牲，秋瑾身份暴露，但她拒绝逃走，从容遣散众人，坚守大通学堂。7月13日，清军包围大通学堂，秋瑾被捕。在狱中，她坚贞不屈，面对严刑拷打，只写下“秋风秋雨愁煞人”七个字。1907年7月15日凌晨，秋瑾在绍兴轩亭口英勇就义，年仅32岁。辛亥革命后，孙中山先生亲笔题写“巾帼英雄”匾额，并多次赞誉秋瑾为“最好的同志”。秋瑾是中国近代史上第一位为革命流血牺牲的女英雄，她的精神激励了一代又一代中国女性为争取解放和独立而奋斗。秋瑾故居是了解这位女侠传奇人生最重要的实物场所，现为全国重点文物保护单位。",
+                iconClass: "marker-qiujin", iconName: "fas fa-fist-raised", story: "⚔️ 宝剑 · 巾帼英姿"
+            }
+        ];
+
+        const ADMIN_PASSWORD = "wenlv2026";
+        let isAdmin = false;
+        let currentOpenId = null;
+        const LUXUN_FIXED_VIDEO = "https://player.bilibili.com/player.html?bvid=BV11qRWB2Ef7&t=2&danmaku=0&high_quality=1";
+        
+        function getVideoForSite(siteId) {
+            if (siteId === "luxun") return LUXUN_FIXED_VIDEO;
+            const stored = localStorage.getItem(`video_${siteId}`);
+            return stored && stored.trim() !== "" ? stored : null;
+        }
+        
+        function persistVideo(siteId, url) {
+            if (siteId === "luxun") {
+                alert("鲁迅故里影片为固定研学影像，不可修改。");
+                return false;
+            }
+            if (url && url.trim()) localStorage.setItem(`video_${siteId}`, url.trim());
+            else localStorage.removeItem(`video_${siteId}`);
+            return true;
+        }
+        
+        function convertToEmbed(url) {
+            if (!url) return null;
+            if (url.includes("player.bilibili.com/player.html")) return url;
+            let yt = /(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+            let m = url.match(yt);
+            if(m) return `https://www.youtube.com/embed/${m[1]}`;
+            if(url.includes('youtube.com/embed/')) return url;
+            let bili = /bilibili\.com\/video\/(BV[0-9A-Za-z]+)/i;
+            let bm = url.match(bili);
+            if(bm) return `https://player.bilibili.com/player.html?bvid=${bm[1]}&danmaku=0&high_quality=1`;
+            if(url.match(/\.(mp4|mov|webm)(\?|$)/i)) return "mp4:" + url;
+            return url;
+        }
+        
+        function updateVideoPlayer(siteId) {
+            const wrapperDiv = document.querySelector('#detailModal .video-wrapper');
+            const placeholder = document.getElementById('videoPlaceholder');
+            const iframe = document.getElementById('videoFrame');
+            const oldVideo = document.getElementById('custom-video-elem');
+            if(oldVideo) oldVideo.remove();
+            if(!wrapperDiv) return;
+            
+            let videoUrl = getVideoForSite(siteId);
+            if (!videoUrl) {
+                iframe.style.display = 'none';
+                placeholder.style.display = 'flex';
+                placeholder.innerHTML = '<i class="fas fa-play-circle" style="font-size:2rem;"></i><br>暂无影像资料，管理员可登录后添加研学视频';
+                return;
+            }
+            let embed = convertToEmbed(videoUrl);
+            if (embed && embed.startsWith("mp4:")) {
+                iframe.style.display = 'none';
+                placeholder.style.display = 'none';
+                let videoTag = document.createElement('video');
+                videoTag.id = 'custom-video-elem';
+                videoTag.controls = true;
+                videoTag.style.width = '100%';
+                videoTag.style.borderRadius = '12px';
+                videoTag.src = embed.slice(4);
+                wrapperDiv.appendChild(videoTag);
+            } else if (embed) {
+                iframe.style.display = 'block';
+                placeholder.style.display = 'none';
+                iframe.src = embed;
+                const oldVid = document.getElementById('custom-video-elem');
+                if(oldVid) oldVid.remove();
+            } else {
+                iframe.style.display = 'none';
+                placeholder.style.display = 'flex';
+                placeholder.innerHTML = '<i class="fas fa-play-circle" style="font-size:2rem;"></i><br>视频地址无效，请检查';
+            }
+        }
+        
+        function renderVideoControls(siteId) {
+            const container = document.getElementById('videoControlContainer');
+            if (!container) return;
+            if (siteId === "luxun") {
+                container.innerHTML = `
+                    <div class="visitor-message" style="background:#e9dbc2;">
+                        <i class="fas fa-film"></i> 本故居已配置固定研学视频（官方影像），所有访客均可观看。<br>
+                        <span style="font-size:12px;">🎥 视频来源：鲁迅文化基金会影像资料</span>
+                    </div>
+                `;
+                return;
+            }
+            if (isAdmin) {
+                const currentVal = localStorage.getItem(`video_${siteId}`) || '';
+                container.innerHTML = `
+                    <div class="admin-badge"><i class="fas fa-user-shield"></i> 管理员模式 · 可编辑研学视频</div>
+                    <div class="video-input-group">
+                        <input type="text" id="adminVideoInput" placeholder="粘贴视频链接 (YouTube / B站 / MP4)" value="${currentVal.replace(/"/g, '&quot;')}">
+                        <button id="adminUpdateVideoBtn" class="btn-video">保存视频</button>
+                        <button id="adminResetVideoBtn" class="btn-video btn-outline">清空视频</button>
+                    </div>
+                    <div class="hint-text">✏️ 修改后保存，所有访客可见（仅限当前故居）。</div>
+                `;
+                const inputEl = document.getElementById('adminVideoInput');
+                const updateBtn = document.getElementById('adminUpdateVideoBtn');
+                const resetBtn = document.getElementById('adminResetVideoBtn');
+                if (updateBtn) updateBtn.addEventListener('click', () => {
+                    let newUrl = inputEl.value.trim();
+                    if (!newUrl) { alert("请输入正确链接"); return; }
+                    if (persistVideo(siteId, newUrl)) {
+                        if (currentOpenId === siteId) updateVideoPlayer(siteId);
+                        alert("✅ 视频已更新，访客将看到新内容。");
+                    }
+                });
+                if (resetBtn) resetBtn.addEventListener('click', () => {
+                    persistVideo(siteId, null);
+                    if (currentOpenId === siteId) updateVideoPlayer(siteId);
+                    if (inputEl) inputEl.value = '';
+                    alert("已清空视频");
+                });
+            } else {
+                container.innerHTML = `
+                    <div class="visitor-message">
+                        <i class="fas fa-lock"></i> 影像资料由管理员配置，不可编辑。<br>
+                        <button id="visitorAdminLoginBtn" class="admin-login-btn"><i class="fas fa-key"></i> 管理员登录 (编辑视频)</button>
+                    </div>
+                `;
+                const loginBtn = document.getElementById('visitorAdminLoginBtn');
+                if (loginBtn) loginBtn.addEventListener('click', () => {
+                    const pwd = prompt("请输入管理员密码以解锁视频编辑权限:");
+                    if (pwd === ADMIN_PASSWORD) {
+                        isAdmin = true;
+                        sessionStorage.setItem('shaoxing_admin', 'true');
+                        if (currentOpenId) renderVideoControls(currentOpenId);
+                        alert("管理员权限已开启，可修改非固定故居的影像链接。");
+                    } else {
+                        alert("密码错误，无编辑权限。");
+                    }
+                });
+            }
+        }
+        
+        function openModal(siteId) {
+            currentOpenId = siteId;
+            const site = sites.find(s => s.id === siteId);
+            if (!site) return;
+            document.getElementById('modalTitle').innerHTML = `${site.name} <span style="font-size:0.8rem;">${site.story}</span>`;
+            document.getElementById('introText').innerText = site.intro;
+            document.getElementById('historyText').innerText = site.history;
+            updateVideoPlayer(siteId);
+            renderVideoControls(siteId);
+            const modal = document.getElementById('detailModal');
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+        
+        function closeModalFunc() {
+            const modal = document.getElementById('detailModal');
+            modal.style.display = 'none';
+            document.body.style.overflow = '';
+            const iframe = document.getElementById('videoFrame');
+            if (iframe) iframe.src = '';
+            const customVid = document.getElementById('custom-video-elem');
+            if(customVid) customVid.remove();
+            currentOpenId = null;
+        }
+        
+        const hotspotsLayer = document.getElementById('hotspotsLayer');
+        const imgElement = document.getElementById('baseMap');
+        const scrollContainer = document.getElementById('scrollZoomContainer');
+        const zoomContent = document.getElementById('zoomPanContent');
+        let currentScale = 1;
+        const minScale = 1;
+        const maxScale = 3;
+        
+        function createHotspots() {
+            hotspotsLayer.innerHTML = '';
+            sites.forEach(site => {
+                const div = document.createElement('div');
+                div.className = 'hotspot';
+                div.style.left = site.left;
+                div.style.top = site.top;
+                div.title = site.story;
+                div.innerHTML = `<div class="${site.iconClass}"><i class="${site.iconName}"></i></div>`;
+                div.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    openModal(site.id);
+                });
+                hotspotsLayer.appendChild(div);
+            });
+        }
+        
+        function zoomAtPoint(zoomIn, clientX, clientY) {
+            let newScale = currentScale + (zoomIn ? 0.15 : -0.15);
+            newScale = Math.min(maxScale, Math.max(minScale, newScale));
+            if (newScale === currentScale) return;
+            const containerRect = scrollContainer.getBoundingClientRect();
+            const scrollLeft = scrollContainer.scrollLeft;
+            const scrollTop = scrollContainer.scrollTop;
+            const mouseXInContent = (clientX - containerRect.left + scrollLeft) / currentScale;
+            const mouseYInContent = (clientY - containerRect.top + scrollTop) / currentScale;
+            currentScale = newScale;
+            zoomContent.style.transform = `scale(${currentScale})`;
+            const newScrollLeft = mouseXInContent * currentScale - (clientX - containerRect.left);
+            const newScrollTop = mouseYInContent * currentScale - (clientY - containerRect.top);
+            scrollContainer.scrollLeft = newScrollLeft;
+            scrollContainer.scrollTop = newScrollTop;
+        }
+        
+        let wheelTimer = null;
+        scrollContainer.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            if (wheelTimer) return;
+            wheelTimer = setTimeout(() => { wheelTimer = null; }, 20);
+            zoomAtPoint(e.deltaY < 0, e.clientX, e.clientY);
+        });
+        function zoomInCenter() { const rect = scrollContainer.getBoundingClientRect(); zoomAtPoint(true, rect.left+rect.width/2, rect.top+rect.height/2); }
+        function zoomOutCenter() { const rect = scrollContainer.getBoundingClientRect(); zoomAtPoint(false, rect.left+rect.width/2, rect.top+rect.height/2); }
+        function resetZoom() { currentScale = 1; zoomContent.style.transform = 'scale(1)'; scrollContainer.scrollLeft = 0; scrollContainer.scrollTop = 0; }
+        document.getElementById('zoomInBtn').addEventListener('click', zoomInCenter);
+        document.getElementById('zoomOutBtn').addEventListener('click', zoomOutCenter);
+        document.getElementById('zoomResetBtn').addEventListener('click', resetZoom);
+        
+        if (imgElement.complete && imgElement.naturalHeight !== 0) createHotspots();
+        else imgElement.addEventListener('load', createHotspots);
+        imgElement.onerror = () => alert("研学地图加载失败，请检查网络。");
+        
+        if (sessionStorage.getItem('shaoxing_admin') === 'true') isAdmin = true;
+        const modal = document.getElementById('detailModal');
+        document.getElementById('closeModalBtn').addEventListener('click', closeModalFunc);
+        window.addEventListener('click', (e) => { if(e.target === modal) closeModalFunc(); });
+    })();
+</script>
+</body>
+</html>
